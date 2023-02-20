@@ -24,18 +24,19 @@ class DExpertsGeneration(GPT2Generation):
     ):
         # Set up device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # self.device = 'cpu'
         n_gpu = torch.cuda.device_count()
         utils.set_seed(seed, n_gpu)
 
-        self.base_model = GPT2LMHeadModel.from_pretrained(base_model).to(self.device)
+        self.base_model = GPT2LMHeadModel.from_pretrained(base_model).to(self.device).eval()
         
         if antiexpert_model:
-            self.antiexpert = GPT2LMHeadModel.from_pretrained(antiexpert_model).to(self.device)
+            self.antiexpert = GPT2LMHeadModel.from_pretrained(antiexpert_model).to(self.device).eval()
         else:
             self.antiexpert = None
         
         if expert_model:
-            self.expert = GPT2LMHeadModel.from_pretrained(expert_model).to(self.device)
+            self.expert = GPT2LMHeadModel.from_pretrained(expert_model).to(self.device).eval()
         else:
             self.expert = None
         

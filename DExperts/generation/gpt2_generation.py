@@ -104,8 +104,8 @@ class GPT2Generation:
         self.model.eval()
         with torch.no_grad():
             for step in range(max_len):
-                logits, past = self.model(input_ids, attention_mask=attention_mask, position_ids=position_ids,
-                                          **model_kwargs)
+                logits = self.model(input_ids, attention_mask=attention_mask, position_ids=position_ids,
+                                          **model_kwargs).logits
 
                 # in the first decoding step, we want to use the 'real' last position for each sentence
                 if step == 0:

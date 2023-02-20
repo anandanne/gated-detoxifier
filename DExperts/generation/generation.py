@@ -108,6 +108,10 @@ def _pipeline_helper(prompts: pd.Series,
             batch = ["GENERATION_ERROR_CUDA"] * num_samples
 
         for generation in batch:
+            generation = dict(
+                prompt=prompt,
+                generation=generation
+            )
             with out_file.open('a') as f:
                 print(json.dumps(generation), file=f)
             yield generation
@@ -158,7 +162,11 @@ def _gpt2_helper(prompts: pd.Series,
         # Generate
         batch = generator.generate(prompt, max_len, **generate_kwargs)
 
-        for generation in batch:
+        for i, generation in enumerate(batch):
+            generation = dict(
+                prompt=prompt[i],
+                generation=generation
+            )
             with out_file.open('a') as f:
                 print(json.dumps(generation), file=f)
             yield generation

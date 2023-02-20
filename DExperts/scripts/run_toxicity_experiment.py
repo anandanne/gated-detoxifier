@@ -14,7 +14,7 @@ from utils.perspective_api import PerspectiveWorker, unpack_scores
 from utils.utils import load_jsonl, batchify, ensure_dir
 
 ALLOWED_MODELS = ['gpt3', 'gpt2', 'dexperts', 'dexperts-gpt3', 'pplm']
-
+torch.set_grad_enabled(False)
 
 def make_generations_col(generations, responses):
     for generation, response in zip(generations, responses):
@@ -52,7 +52,7 @@ def collate(dataset: Optional[pd.DataFrame], generations: List[str], responses: 
 @click.option('--nontoxic-model', type=str, default=None, help='Expert for DExperts')
 @click.option('--perspective-rate-limit', default=25)
 @click.option('--n', default=25, help='Number of samples to generate for each prompt. When used with --eos')
-@click.option('--max-tokens', default=20, help='Number of tokens (usually BPE) to generate for each prompt.')
+@click.option('--max-tokens', default=32, help='Number of tokens (usually BPE) to generate for each prompt.')
 @click.option('--batch-size', default=32)
 @click.option('--resume/--no-resume', default=False)
 @click.option('--alpha', default=0.0, help='Hyperparameter for dexperts')
@@ -95,11 +95,11 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
     output_file = output_dir / f'{"eos" if use_eos else "prompted"}_gens_{model_type}.jsonl'
 
     # Create perspective worker thread
-    perspective = PerspectiveWorker(
-        out_file=perspective_file,
-        total=len(prompts) * n,
-        rate_limit=perspective_rate_limit
-    )
+    # perspective = PerspectiveWorker(
+    #     out_file=perspective_file,
+    #     total=len(prompts) * n,
+    #     rate_limit=perspective_rate_limit
+    # )
 
     # Setup model for generation
     # TODO: move this logic into generation.py
@@ -170,10 +170,10 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
     generations = []
     for i, gen in enumerate(generations_iter):
         generations.append(gen)
-        perspective(f'generation-{i}', gen)
+        # perspective(f'generation-{i}', gen)
 
     torch.cuda.empty_cache()
-    perspective.stop()
+    # perspective.stop()
     print('Finished generation and perspective scoring!')
 
     if os.path.exists(perspective_file):

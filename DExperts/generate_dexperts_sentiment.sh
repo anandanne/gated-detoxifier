@@ -1,6 +1,3 @@
-# MODEL=heegyu/gpt2-news-category
-# MODEL=heegyu/gpt2-emotion
-# MODEL=heegyu/gpt2-sentiment
 OUTPUT_DIR=test-generations/toxicity/emotion
 PROMPTS_DATASET=prompts/emotion-10.jsonl
 MODEL=heegyu/gpt2-emotion
