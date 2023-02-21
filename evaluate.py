@@ -51,6 +51,19 @@ def score_accuracy(items, preds, use_prompt_label=True, true_label=None):
         print(k, correct[k] / total[k] ,f"{correct[k]} of {total[k]}")
 
 
+def eval_news_category(filename, items):
+    classifier = Classifier("heegyu/roberta-base-news-category-top10")
+    id2label = [
+        "ENTERTAINMENT", "POLITICS", "WELLNESS", "TRAVEL", "STYLE",
+        "PARENTING", "HEALTHY", "QUEER", "FOOD", "BUSINESS"
+        ]
+    predictions = classifier.classify_items(items, 8, id2label)
+
+    print("Topic score for", filename)
+    score_accuracy(items, predictions)
+    return {}
+
+
 def eval_emotion(filename, items):
     classifier = Classifier("Aron/distilbert-base-uncased-finetuned-emotion")
     id2label = ["sadness", "joy", "love", "anger", "fear", "surprise"]
@@ -61,8 +74,8 @@ def eval_emotion(filename, items):
     return {}
 
 def eval_sentiment(filename, items):
-    classifier = Classifier("Aron/distilbert-base-uncased-finetuned-emotion")
-    id2label = ["sadness", "joy", "love", "anger", "fear", "surprise"]
+    classifier = Classifier("wrmurray/roberta-base-finetuned-imdb")
+    id2label = ["negative", "positive"]
     predictions = classifier.classify_items(items, 8, id2label)
 
     print("Sentiment score for", filename)
@@ -101,10 +114,11 @@ def main(task, filename):
 
     if task == "emotion":
         eval_emotion(filename, items)
-    # elif task == "sentiment":
-    #     eval_emotion(filename, items)
-    # elif task == "news"
-    # 
+    elif task == "sentiment":
+        eval_sentiment(filename, items)
+    elif task == "news-category":
+        eval_news_category(filename, items)
+
     eval_toxicity(filename, items)
     eval_grammar(filename, items)
 

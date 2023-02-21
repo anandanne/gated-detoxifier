@@ -19,6 +19,7 @@ from generation.gpt2_generation import GPT2Generation
 from generation.dexperts_generation import DExpertsGeneration
 from generation.dexperts_gpt3_generation import DExpertsGPT3Generation
 from generation.pplm_generation import PPLMGeneration
+from generation.gedi_generation import GeDiGeneration
 from utils.constants import OPENAI_API_KEY
 from utils.utils import batchify, load_cache
 
@@ -202,6 +203,32 @@ def dexperts(prompts: pd.Series,
              **generate_kwargs) -> Iterable[str]:
 
     generator = DExpertsGeneration(
+        base_model=model_name_or_path, 
+        expert_model=expert_name_or_path,
+        antiexpert_model=antiexpert_name_or_path
+    )
+
+    yield from _gpt2_helper(
+        prompts=prompts,
+        max_len=max_len,
+        num_samples=num_samples,
+        batch_size=batch_size,
+        generator=generator,
+        out_file=out_file,
+        **generate_kwargs
+    )
+
+def gedi(prompts: pd.Series,
+             max_len: int,
+             num_samples: int,
+             batch_size: int,
+             model_name_or_path: str,
+             expert_name_or_path: str,
+             antiexpert_name_or_path: str,
+             out_file: Path,
+             **generate_kwargs) -> Iterable[str]:
+
+    generator = GeDiGeneration(
         base_model=model_name_or_path, 
         expert_model=expert_name_or_path,
         antiexpert_model=antiexpert_name_or_path

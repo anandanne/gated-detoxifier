@@ -8,12 +8,12 @@ import torch
 from tqdm import tqdm
 import os
 
-from generation.generation import gpt2, gpt3, pplm, dexperts, dexperts_gpt3
+from generation.generation import gpt2, gpt3, pplm, dexperts, dexperts_gpt3, gedi
 from utils.constants import PERSPECTIVE_API_ATTRIBUTES_LOWER
 from utils.perspective_api import PerspectiveWorker, unpack_scores
 from utils.utils import load_jsonl, batchify, ensure_dir
 
-ALLOWED_MODELS = ['gpt3', 'gpt2', 'dexperts', 'dexperts-gpt3', 'pplm']
+ALLOWED_MODELS = ['gpt3', 'gpt2', 'dexperts', 'dexperts-gpt3', 'pplm', 'gedi']
 torch.set_grad_enabled(False)
 
 def make_generations_col(generations, responses):
@@ -162,6 +162,20 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
             num_iterations=10,
             model_name_or_path=model,
             out_file=generations_file
+        )
+    elif model_type == 'gedi':
+        generations_iter = gedi(
+            prompts=prompts,
+            max_len=max_tokens,
+            num_samples=n,
+            batch_size=batch_size,
+            model_name_or_path=model,
+            expert_name_or_path=nontoxic_model,
+            antiexpert_name_or_path=toxic_model,
+            out_file=generations_file,
+            filter_p=filter_p,
+            p=p,
+            alpha=alpha,
         )
     else:
         raise NotImplementedError(f'Model {model} not implemented')

@@ -9,8 +9,9 @@ import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss
 
-from transformers.configuration_gpt2 import GPT2Config
-from transformers.file_utils import add_start_docstrings, add_start_docstrings_to_callable
+from transformers import GPT2Config
+from transformers.file_utils import add_start_docstrings
+#, add_start_docstrings_to_callable
 # from transformers.modeling_utils import Conv1D, PreTrainedModel, SequenceSummary, prune_conv1d_layer
 from modeling_utils import Conv1D, PreTrainedModel, SequenceSummary, prune_conv1d_layer
 
@@ -358,7 +359,7 @@ class GPT2Model(GPT2PreTrainedModel):
         for layer, heads in heads_to_prune.items():
             self.h[layer].attn.prune_heads(heads)
 
-    @add_start_docstrings_to_callable(GPT2_INPUTS_DOCSTRING)
+    # @add_start_docstrings_to_callable(GPT2_INPUTS_DOCSTRING)
     def forward(
         self,
         input_ids=None,
@@ -594,7 +595,7 @@ class GPT2LMHeadModel(GPT2PreTrainedModel):
         inputs.update(kwargs)
         return inputs
 
-    @add_start_docstrings_to_callable(GPT2_INPUTS_DOCSTRING)
+    # @add_start_docstrings_to_callable(GPT2_INPUTS_DOCSTRING)
     def forward(
         self,
         input_ids=None,
@@ -704,7 +705,7 @@ class GPT2DoubleHeadsModel(GPT2PreTrainedModel):
     def get_output_embeddings(self):
         return self.lm_head
 
-    @add_start_docstrings_to_callable(GPT2_INPUTS_DOCSTRING)
+    # @add_start_docstrings_to_callable(GPT2_INPUTS_DOCSTRING)
     def forward(
         self,
         input_ids=None,
