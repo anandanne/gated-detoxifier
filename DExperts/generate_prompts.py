@@ -9,8 +9,11 @@ NEWS_CATEGORIES = [
 def generate_news(count=None):
     dataset = load_dataset("heegyu/news-category-balanced-top10", split="train")
     if count:
-        dataset = dataset.shuffle(42).select(range(count))
-    out = jsonlines.open(f"prompts/news-{count}.jsonl", "w")
+        dataset = dataset.shuffle(42) #.select(range(count))
+    if count:
+        out = jsonlines.open(f"prompts/news-{count}.jsonl", "w")
+    else:
+        out = jsonlines.open(f"prompts/news-all.jsonl", "w")
 
     for category in NEWS_CATEGORIES:
         i = 0
@@ -23,9 +26,12 @@ def generate_news(count=None):
                 "prompt": {"text": prompt}
             })
             i += 1
+            print(item['category'], category, i)
 
             if count and count == i:
                 break
+
+        print("hi")
 
     out.close()
 
@@ -57,8 +63,10 @@ def generate_sentiment(count_per_emotion):
 
 
 if __name__ == "__main__":
-    for count in [5, 250]:
+    for count in [20]:
         generate_emotion(count)
         generate_sentiment(count)
     # for count in [100, None]:
+    #     generate_news(count)
+    # for count in [2]:
     #     generate_news(count)

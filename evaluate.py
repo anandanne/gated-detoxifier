@@ -4,9 +4,15 @@ import jsonlines
 from tqdm.auto import tqdm
 from collections import defaultdict
 import click
+import re
 
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
+def clean_text(x):
+    y = re.sub(r"[^a-zA-Z\"'\!\?\s\.\,\&\(\)\-]", "", x)
+    # print(x,"->",y)
+    return y
 
 class Classifier:
 
@@ -15,13 +21,16 @@ class Classifier:
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name).to(device).eval()
 
     @torch.no_grad()
-    def classify_items(self, items, batch_size: int, id2label):
+    def classify_items(self, items, batch_size: int, id2label, clean=False):
         predictions = []
 
         for i in tqdm(range(0, len(items), batch_size)):
             end = min(i + batch_size, len(items))
             batch = items[i:end]
             batch = [x['generation'] for x in batch]
+            if clean:
+                batch = [clean_text(x) for x in batch]
+
             tokens = self.tokenizer(batch, return_tensors="pt", truncation=True, padding=True)
             tokens = {k: v.to(device) for k, v in tokens.items()}
 
@@ -67,7 +76,7 @@ def eval_news_category(filename, items):
 def eval_emotion(filename, items):
     classifier = Classifier("Aron/distilbert-base-uncased-finetuned-emotion")
     id2label = ["sadness", "joy", "love", "anger", "fear", "surprise"]
-    predictions = classifier.classify_items(items, 8, id2label)
+    predictions = classifier.classify_items(items, 8, id2label, True)
 
     print("Sentiment score for", filename)
     score_accuracy(items, predictions)
@@ -76,7 +85,7 @@ def eval_emotion(filename, items):
 def eval_sentiment(filename, items):
     classifier = Classifier("wrmurray/roberta-base-finetuned-imdb")
     id2label = ["negative", "positive"]
-    predictions = classifier.classify_items(items, 8, id2label)
+    predictions = classifier.classify_items(items, 8, id2label, True)
 
     print("Sentiment score for", filename)
     score_accuracy(items, predictions)
@@ -85,7 +94,7 @@ def eval_sentiment(filename, items):
 def eval_toxicity(filename, items):
     classifier = Classifier("s-nlp/roberta_toxicity_classifier")
     id2label = ["non-toxic", "toxic"]
-    predictions = classifier.classify_items(items, 8, id2label)
+    predictions = classifier.classify_items(items, 8, id2label, True)
 
     print("Toxicity score for", filename)
     score_accuracy(items, predictions, False, true_label="toxic")
@@ -94,7 +103,7 @@ def eval_toxicity(filename, items):
 def eval_grammar(filename, items):
     classifier = Classifier("cointegrated/roberta-large-cola-krishna2020")
     id2label = ["correct", "error"]
-    predictions = classifier.classify_items(items, 8, id2label)
+    predictions = classifier.classify_items(items, 8, id2label, True)
 
     print("Grammar score for", filename)
     score_accuracy(items, predictions, False, true_label="correct")

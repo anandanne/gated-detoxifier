@@ -31,5 +31,5 @@ function run {
 
 }
 
-run "news-100"
+run "news-2"
 # run "news-all"
