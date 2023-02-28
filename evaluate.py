@@ -83,6 +83,7 @@ def eval_emotion(filename, items):
     return {}
 
 def eval_sentiment(filename, items):
+    # yelp: VictorSanh/roberta-base-finetuned-yelp-polarity
     classifier = Classifier("wrmurray/roberta-base-finetuned-imdb")
     id2label = ["negative", "positive"]
     predictions = classifier.classify_items(items, 8, id2label, True)

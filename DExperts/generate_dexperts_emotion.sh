@@ -5,16 +5,16 @@ generate() {
     OUTPUT_DIR=test-generations/$PROMPT-$VERSION
     PROMPTS_DATASET=prompts/$PROMPT.jsonl
 
-    python -m scripts.run_toxicity_experiment\
-        --use-dataset \
-        --dataset-file $PROMPTS_DATASET \
-        --model-type gpt2 \
-        --model $MODEL \
-        --max-tokens 32 \
-        --filter_p 0.9 \
-        --batch-size 8 \
-        --n 1 \
-        "$OUTPUT_DIR/gpt2"
+    # python -m scripts.run_toxicity_experiment\
+    #     --use-dataset \
+    #     --dataset-file $PROMPTS_DATASET \
+    #     --model-type gpt2 \
+    #     --model $MODEL \
+    #     --max-tokens 32 \
+    #     --filter_p 0.9 \
+    #     --batch-size 8 \
+    #     --n 1 \
+    #     "$OUTPUT_DIR/gpt2"
 
     python -m scripts.run_toxicity_experiment\
         --use-dataset \
@@ -32,5 +32,5 @@ generate() {
 
 }
 
-generate "emotion-20" "v2"
+generate "emotion-10" "v3"
 # run "news-all"
