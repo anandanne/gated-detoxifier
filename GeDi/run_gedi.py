@@ -123,42 +123,41 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
     code_undesired = "clean"
     model_type = 'gpt2'
     gen_type = "gedi"
-    gen_model_name_or_path = "gpt2" # "gpt2-medium"
+    # gen_model_name_or_path = "gpt2" # "gpt2-medium"
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    tokenizer = GPT2Tokenizer.from_pretrained(gen_model_name_or_path, do_lower_case=False)
-    model = GPT2LMHeadModel.from_pretrained(gen_model_name_or_path)#, load_in_half_prec=True)
+    tokenizer = GPT2Tokenizer.from_pretrained("gpt2", do_lower_case=False)
+    model = GPT2LMHeadModel.from_pretrained(model)#, load_in_half_prec=True)
     model = model.to(device).eval()
 
-    gedi_model_name_or_path = 'pretrained_models/gedi_detoxifier'
+    gedi_model_name_or_path = 'gedi_detoxifier'
     gedi_model = GPT2LMHeadModel.from_pretrained(gedi_model_name_or_path).eval().to(device)
-    disc_weight = 30 # #omega from paper, higher disc_weight means more aggressive topic steering (30)
-    filter_p = 0.8 #1 - rho from paper, should be between 0 and 1 higher filter_p means more aggressive topic steering
-    target_p = 0.8 #tau from paper, preserves tokens that are classified as correct topic
+    # disc_weight = 30 # #omega from paper, higher disc_weight means more aggressive topic steering (30)
+    # filter_p = 0.8 #1 - rho from paper, should be between 0 and 1 higher filter_p means more aggressive topic steering
+    # target_p = 0.8 #tau from paper, preserves tokens that are classified as correct topic
     class_bias = 0 #hyperparameter that determines class prior, set to uniform by default
 
-    print(gedi)
     def generate_text(prompt):
         text_ids = tokenizer.encode(prompt)
         encoded_prompts=torch.LongTensor(text_ids).unsqueeze(0).to(device)
-        if encoded_prompts.shape[1] > 512:
-            encoded_prompts = encoded_prompts[:, -512:]
+        # if encoded_prompts.shape[1] > 512:
+        #     encoded_prompts = encoded_prompts[:, -512:]
 
         # multi_code = tokenizer.encode(secondary_code)
         attr_class = 1
-
+        # print(encoded_prompts.shape[1] + max_tokens)
         generated_sequence = model.generate(
             input_ids=encoded_prompts,
             pad_lens=None,
             max_length=min(1024, encoded_prompts.shape[1] + max_tokens),
             min_length=min(1024, encoded_prompts.shape[1] + max_tokens),
             top_k=None,
-            top_p=1.0,
+            top_p=p,
             # repetition_penalty= 1.2,
             # rep_penalty_scale= 10,
-            eos_token_ids = tokenizer.eos_token_id,
-            pad_token_id = 0,
+            eos_token_ids = [50256],
+            pad_token_id = 50256,
             do_sample= True,
             penalize_cond= True,
             gedi_model= gedi_model if gedi else None,
@@ -174,8 +173,8 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
             num_return_sequences=n
             )
 
-        texts = [tokenizer.decode(output, skip_special_tokens=True)[len(prompt):] for output in generated_sequence.tolist()]
-        # texts = [tokenizer.decode(output, skip_special_tokens=True) for output in generated_sequence.tolist()]
+        # texts = [tokenizer.decode(output, skip_special_tokens=False)[len(prompt):] for output in generated_sequence.tolist()]
+        texts = [tokenizer.decode(output, skip_special_tokens=True) for output in generated_sequence.tolist()]
         return texts
 
     # prompt = "It is really "

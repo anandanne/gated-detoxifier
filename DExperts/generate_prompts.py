@@ -50,12 +50,13 @@ def generate_emotion(count_per_emotion):
     out.close()
 
 def generate_sentiment(count_per_emotion):
-    emotions = ["positive", "negative"]
+    # emotions = ["positive", "negative"]
+    emotions = ["positive it was good. ", "negative it was bad. "]
     out = jsonlines.open(f"prompts/sentiment-{count_per_emotion}.jsonl", "w")
 
     for emotion in emotions:
         for item in range(count_per_emotion):
-            prompt = f"{emotion} "
+            prompt = f"{emotion}"
             out.write({
                 "prompt": {"text": prompt}
             })
@@ -64,10 +65,10 @@ def generate_sentiment(count_per_emotion):
 
 
 if __name__ == "__main__":
-    for count in [10, 100]:
-        generate_emotion(count)
+    for count in [5, 10, 1000]:
+        # generate_emotion(count)
         generate_sentiment(count)
-    # for count in [100, None]:
+    # for count in [10, 1000]:
     #     generate_news(count)
     # for count in [2]:
     #     generate_news(count)

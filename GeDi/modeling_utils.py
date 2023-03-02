@@ -1183,6 +1183,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
 
 
             # update generations and finished sentences
+            print("before", unfinished_sents, next_token)
             tokens_to_add = next_token * unfinished_sents + pad_token_id * (1 - unfinished_sents)
             if get_ll:
                 sequence_ll += next_token_logp[0,next_token]
@@ -1193,6 +1194,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
 
             # stop when there is a </s> in each sentence, or if we exceed the maximul length
             if unfinished_sents.max() == 0:
+                print("unfinished_sents.max() == 0", unfinished_sents)
                 break
 
         # if not(gedi_model is None):
