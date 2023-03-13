@@ -84,9 +84,9 @@ def collate(dataset: Optional[pd.DataFrame], generations: List[str], responses: 
 @click.option('--filter_p', default=0.8, type=float, help='1 - rho from paper, should be between 0 and 1 higher filter_p means more aggressive topic steering')
 @click.option('--target_p', default=0.8, type=float, help='tau from paper, preserves tokens that are classified as correct topic')
 @click.option('--disc_weight', default=30, type=int, help='omega from paper, higher disc_weight means more aggressive topic steering (30)')
-@click.option('--p', default=1.0, type=float, help='Hyperparameter for nucleus sampling')
+@click.option('--top_p', default=1.0, type=float, help='Hyperparameter for nucleus sampling')
 def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str, gedi: bool,
-         target_p: float, disc_weight: int, n: int, max_tokens: int, batch_size: int, resume: bool, filter_p: float, p: float):
+         target_p: float, disc_weight: int, n: int, max_tokens: int, batch_size: int, resume: bool, filter_p: float, top_p: float):
     # Load prompts
     if dataset_file:
         assert not use_eos
@@ -131,7 +131,7 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
     model = GPT2LMHeadModel.from_pretrained(model)#, load_in_half_prec=True)
     model = model.to(device).eval()
 
-    gedi_model_name_or_path = 'gedi_detoxifier'
+    gedi_model_name_or_path = 'pretrained_models/gedi_detoxifier'
     gedi_model = GPT2LMHeadModel.from_pretrained(gedi_model_name_or_path).eval().to(device)
     # disc_weight = 30 # #omega from paper, higher disc_weight means more aggressive topic steering (30)
     # filter_p = 0.8 #1 - rho from paper, should be between 0 and 1 higher filter_p means more aggressive topic steering
@@ -153,7 +153,7 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
             max_length=min(1024, encoded_prompts.shape[1] + max_tokens),
             min_length=min(1024, encoded_prompts.shape[1] + max_tokens),
             top_k=None,
-            top_p=p,
+            top_p=top_p,
             # repetition_penalty= 1.2,
             # rep_penalty_scale= 10,
             eos_token_ids = [50256],

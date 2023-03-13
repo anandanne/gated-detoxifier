@@ -15,12 +15,14 @@ function run {
         --dataset-file $PROMPTS_DATASET \
         --model $MODEL \
         --n 1 \
+        --resume \
+        --disc_weight 15 \
         --max-tokens $TOKENS \
         "../data/v1/gedi-v6/$PROMPT/"
 }
 
 # run "gpt2-yelp-polarity" "sentiment-10" 32
-run "gpt2-emotion" "emotion-10" 32
+run "heegyu/gpt2-emotion" "emotion-10" 32
 # run "gpt2-news-category" "news-10" 48
 
 # run "heegyu/gpt2-yelp-polarity" "sentiment-1000" 32
