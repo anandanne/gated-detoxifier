@@ -50,6 +50,7 @@ def collate(dataset: Optional[pd.DataFrame], generations: List[str], responses: 
               type=click.Choice(ALLOWED_MODELS))
 @click.option('--toxic-model', type=str, default=None, help='Anti-expert for DExperts')
 @click.option('--nontoxic-model', type=str, default=None, help='Expert for DExperts')
+@click.option('--classifier-model', type=str, default=None, help='Classifier for Gated Detoxifier')
 @click.option('--perspective-rate-limit', default=25)
 @click.option('--n', default=25, help='Number of samples to generate for each prompt. When used with --eos')
 @click.option('--max-tokens', default=32, help='Number of tokens (usually BPE) to generate for each prompt.')
@@ -60,7 +61,7 @@ def collate(dataset: Optional[pd.DataFrame], generations: List[str], responses: 
 @click.option('--p', default=1.0, type=float, help='Hyperparameter for nucleus sampling')
 def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str, model_type: str, nontoxic_model: str,
          toxic_model: str, perspective_rate_limit: int, n: int, max_tokens: int, batch_size: int, resume: bool,
-         alpha: float, filter_p: float, p: float):
+         classifier_model: str, alpha: float, filter_p: float, p: float):
     # Load prompts
     if dataset_file:
         assert not use_eos
@@ -132,6 +133,7 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
             model_name_or_path=model,
             expert_name_or_path=nontoxic_model,
             antiexpert_name_or_path=toxic_model,
+            classifier_name_or_path=classifier_model,
             out_file=generations_file,
             filter_p=filter_p,
             p=p,

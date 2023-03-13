@@ -199,13 +199,15 @@ def dexperts(prompts: pd.Series,
              model_name_or_path: str,
              expert_name_or_path: str,
              antiexpert_name_or_path: str,
+             classifier_name_or_path: str,
              out_file: Path,
              **generate_kwargs) -> Iterable[str]:
 
     generator = DExpertsGeneration(
         base_model=model_name_or_path, 
         expert_model=expert_name_or_path,
-        antiexpert_model=antiexpert_name_or_path
+        antiexpert_model=antiexpert_name_or_path,
+        classifier_model=classifier_name_or_path
     )
 
     yield from _gpt2_helper(
