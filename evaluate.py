@@ -5,7 +5,7 @@ from tqdm.auto import tqdm
 from collections import defaultdict
 import click
 import re
-
+import pandas as pd
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
@@ -55,9 +55,14 @@ def score_accuracy(items, preds, use_prompt_label=True, true_label=None):
                 correct[label] += 1
         elif p == true_label:
             correct[label] += 1
+    # print(items)
+    # print(preds)
+    # print(list(correct.keys()), list(total.keys()))
+    for k in total.keys():
+        # print(k, correct[k] / total[k] ,f"{correct[k]} of {total[k]}")
+        correct[k] = correct.get(k, 0) / total[k]
 
-    for k in sorted(total.keys()):
-        print(k, correct[k] / total[k] ,f"{correct[k]} of {total[k]}")
+    return correct
 
 
 def eval_news_category(filename, items):
@@ -68,49 +73,70 @@ def eval_news_category(filename, items):
         ]
     predictions = classifier.classify_items(items, 8, id2label)
 
-    print("Topic score for", filename)
-    score_accuracy(items, predictions)
-    return {}
+    # print("Topic score for", filename)
+    return score_accuracy(items, predictions)
+
+def eval_bbc_news(filename, items):
+    # classifier = Classifier("abhishek/autonlp-bbc-news-classification-37229289")
+    classifier = Classifier("Umesh/distilbert-bbc-news-classification")
+    id2label = [
+        "business", "entertainment", "politics", "sport", "tech", 
+    ]
+    predictions = classifier.classify_items(items, 8, id2label)
+
+    for item in items:
+        item["prompt"] = item["prompt"].replace("topic:", "").strip()
+
+    # print("Topic score for", filename)
+    return score_accuracy(items, predictions)
 
 
 def eval_emotion(filename, items):
-    classifier = Classifier("Aron/distilbert-base-uncased-finetuned-emotion")
+    # classifier = Classifier("j-hartmann/emotion-english-distilroberta-base")
+    # id2label = ["anger", "disgust", "fear", "joy", "neutral", "sadness", "surprise"]
+    # classifier = Classifier("transformersbook/distilbert-base-uncased-finetuned-emotion")
+    # id2label = ["sadness", "joy", "love", "anger", "fear", "surprise"]
+    # classifier = Classifier("Aron/distilbert-base-uncased-finetuned-emotion")
+    # id2label = ["sadness", "joy", "love", "anger", "fear", "surprise"]
+    classifier = Classifier("bhadresh-savani/bert-base-uncased-emotion")
     id2label = ["sadness", "joy", "love", "anger", "fear", "surprise"]
+
+    for item in items:
+        item["prompt"] = item["prompt"].replace("topic:", "").strip()
+
     predictions = classifier.classify_items(items, 8, id2label, True)
 
-    print("Sentiment score for", filename)
-    score_accuracy(items, predictions)
-    return {}
+    # print("Emotion score for", filename)
+    return score_accuracy(items, predictions)
 
 def eval_sentiment(filename, items):
     # yelp: VictorSanh/roberta-base-finetuned-yelp-polarity
+    # textattack/bert-base-uncased-yelp-polarity
     # imdb: wrmurray/roberta-base-finetuned-imdb
-
-    classifier = Classifier("VictorSanh/roberta-base-finetuned-yelp-polarity")
+    classifier = Classifier("textattack/bert-base-uncased-yelp-polarity")
     id2label = ["negative", "positive"]
+    # classifier = Classifier("cardiffnlp/twitter-xlm-roberta-base-sentiment")
+    # id2label = ["negative", "neutral", "positive"]
     predictions = classifier.classify_items(items, 8, id2label, True)
 
-    print("Sentiment score for", filename)
-    score_accuracy(items, predictions)
-    return {}
+    # print("Sentiment score for", filename)
+    return score_accuracy(items, predictions)
 
 def eval_toxicity(filename, items):
     classifier = Classifier("s-nlp/roberta_toxicity_classifier")
     id2label = ["non-toxic", "toxic"]
     predictions = classifier.classify_items(items, 8, id2label, True)
 
-    print("Toxicity score for", filename)
-    score_accuracy(items, predictions, False, true_label="toxic")
-    return {}
+    # print("Toxicity score for", filename)
+    return score_accuracy(items, predictions, False, true_label="toxic")
 
 def eval_grammar(filename, items):
     classifier = Classifier("cointegrated/roberta-large-cola-krishna2020")
     id2label = ["correct", "error"]
     predictions = classifier.classify_items(items, 8, id2label, True)
 
-    print("Grammar score for", filename)
-    score_accuracy(items, predictions, False, true_label="correct")
-    return {}
+    # print("Grammar score for", filename)
+    return score_accuracy(items, predictions, False, true_label="correct")
 
 
 @click.command()
@@ -124,15 +150,24 @@ def main(task, filename):
         for item in f:
             items.append(item)
 
-    if task == "emotion":
-        eval_emotion(filename, items)
-    elif task == "sentiment":
-        eval_sentiment(filename, items)
-    elif task == "news-category":
-        eval_news_category(filename, items)
+    result = {}
 
-    eval_toxicity(filename, items)
-    eval_grammar(filename, items)
+    if task == "emotion":
+        result["emotion"] = eval_emotion(filename, items)
+    elif task == "sentiment":
+        result["sentiment"] = eval_sentiment(filename, items)
+    elif task == "news-category":
+        result["news-category"] = eval_news_category(filename, items)
+    elif task == "bbc-news":
+        result["bbc-news"] = eval_bbc_news(filename, items)
+
+    result["toxicity"] = eval_toxicity(filename, items)
+    result["grammar"] = eval_grammar(filename, items)
+    
+    df = pd.DataFrame(result)
+    print(filename)
+    print(df)
+    df.to_csv(filename + ".eval.csv")
 
 
 if __name__ == "__main__":

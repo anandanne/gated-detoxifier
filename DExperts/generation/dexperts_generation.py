@@ -133,13 +133,15 @@ class DExpertsGeneration(GPT2Generation):
 
                     generating_text = self.tokenizer.batch_decode(next_input_ids)
                     is_toxic = self.classify_toxic(generating_text)
-                    print(generating_text, is_toxic)
 
                     if is_toxic.sum().item() == 0:
                         input_ids = next_input_ids
                         attention_mask = next_attention_mask
                         position_ids = next_position_ids
                         continue
+                    else:
+                        print("oh toxic")
+                        print(generating_text, is_toxic)
 
                 # base model prediction
                 # base_logits = self.base_model(
@@ -205,8 +207,8 @@ class DExpertsGeneration(GPT2Generation):
                     input_ids = all_input_ids[range(batch_size), is_toxic, :]
                 else:
                     input_ids = guided_input_ids
-                attention_mask = next_attention_mask # torch.cat([attention_mask, attention_mask.new_ones((batch_size, 1))], dim=1)
-                position_ids = next_position_ids # torch.cat([position_ids, (position_ids[:, -1] + 1).unsqueeze(-1)], dim=1)
+                attention_mask = torch.cat([attention_mask, attention_mask.new_ones((batch_size, 1))], dim=1)
+                position_ids = torch.cat([position_ids, (position_ids[:, -1] + 1).unsqueeze(-1)], dim=1)
 
         decoded_outputs = [self.tokenizer.decode(output, skip_special_tokens=True, clean_up_tokenization_spaces=True)
                            for output in input_ids[:, input_seq_len:]]

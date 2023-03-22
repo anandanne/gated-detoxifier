@@ -67,6 +67,7 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
         assert not use_eos
         # Load prompts from dataset file
         assert dataset_file.endswith('.jsonl')
+        print(dataset_file)
         dataset = pd.read_json(dataset_file, lines=True)
         prompts = pd.json_normalize(dataset['prompt'])['text']
     elif use_eos:

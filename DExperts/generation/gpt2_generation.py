@@ -89,6 +89,8 @@ class GPT2Generation:
                  p: float = 1.0,
                  temperature: float = 1.0,
                  **model_kwargs) -> List[str]:
+        "https://github.com/huggingface/transformers/blob/60d51ef5123d949fd8c59cd4d3254e711541d278/src/transformers/generation/utils.py#L2283"
+        
         if isinstance(prompt, str):
             prompt = [prompt]
 

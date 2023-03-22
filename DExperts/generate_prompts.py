@@ -6,6 +6,10 @@ NEWS_CATEGORIES = [
     "PARENTING", "HEALTHY LIVING", "QUEER VOICES", "FOOD & DRINK", "BUSINESS"
     ]
 
+BBC_NEWS = [
+    "tech", "business", "sport", "entertainment", "politics"
+]
+
 def generate_news(count=None):
     dataset = load_dataset("heegyu/news-category-balanced-top10", split="train")
     if count:
@@ -34,15 +38,27 @@ def generate_news(count=None):
         print("hi")
 
     out.close()
+    
+
+def generate_bbcnews(count_per_emotion):
+    out = jsonlines.open(f"prompts/bbc-news-{count_per_emotion}.jsonl", "w")
+
+    for emotion in BBC_NEWS:
+        for item in range(count_per_emotion):
+            out.write({
+                "prompt": {"text": f"topic: {emotion}\n"}
+            })
+
+    out.close()
 
 def generate_emotion(count_per_emotion):
-    # emotions = ["sadness", "joy", "love", "anger", "fear", "surprise"]
-    emotions = ["sadness im so sad. ", "joy im so happy. ", "love i feel romantic. ", "anger im furious. ", "fear im so scared. ", "surprise im so surprised. "]
+    emotions = ["sadness", "joy", "love", "anger", "fear", "surprise"]
+    # emotions = ["sadness im so sad. ", "joy im so happy. ", "love i feel romantic. ", "anger im furious. ", "fear im so scared. ", "surprise im so surprised. "]
     out = jsonlines.open(f"prompts/emotion-{count_per_emotion}.jsonl", "w")
 
     for emotion in emotions:
         for item in range(count_per_emotion):
-            prompt = emotion
+            prompt =  f"topic: {emotion}\n"
             out.write({
                 "prompt": {"text": prompt}
             })
@@ -65,9 +81,10 @@ def generate_sentiment(count_per_emotion):
 
 
 if __name__ == "__main__":
-    for count in [5, 10, 1000]:
-        # generate_emotion(count)
-        generate_sentiment(count)
+    for count in [5, 10, 100, 1000]:
+        generate_emotion(count)
+        # generate_sentiment(count)
+        # generate_bbcnews(count)
     # for count in [10, 1000]:
     #     generate_news(count)
     # for count in [2]:
