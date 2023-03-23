@@ -22,6 +22,13 @@ T = TypeVar('T')
 
 
 ALLOWED_MODELS = ['gpt3', 'gpt2', 'dexperts', 'dexperts-gpt3', 'pplm']
+ALLOWED_PROMPT = ["yelp", "emotion", "bbc-news"]
+PROMPT = {
+    "yelp": ["positive ", "negative "],
+    "emotion": [f"topic: {k}\n" for k in ["sadness", "joy", "love", "anger", "fear", "surprise"]],
+    "bbc-news": [f"topic: {k}\n" for k in ["tech", "business", "sport", "entertainment", "politics"]],
+}
+
 torch.set_grad_enabled(False)
 
 
@@ -70,60 +77,36 @@ def collate(dataset: Optional[pd.DataFrame], generations: List[str], responses: 
     dataset.to_json(output_file, orient='records', lines=True)
 
 
+
+
 @click.command()
-@click.argument('output-dir')
-@click.option('--dataset-file', required=False, type=str,
-              help='JSONL file containing prompts data. Each row must contain a prompt at `row["prompt"]["text"]`.')
+@click.argument('output-file')
+@click.option('--prompt', required=True, type=click.Choice(ALLOWED_PROMPT))
 @click.option('--use-eos/--use-dataset', default=False, help='Whether to use EOS or a dataset file for generation.')
 @click.option('--model', required=True, help='Equivalent to `model_name_or_path` in transformers.')
+@click.option('--classifier-model', type=str, default=None, help='Classifier for Gated Detoxifier')
 @click.option('--n', default=25, help='Number of samples to generate for each prompt. When used with --eos')
 @click.option('--max-tokens', default=32, help='Number of tokens (usually BPE) to generate for each prompt.')
-@click.option('--batch-size', default=32)
-@click.option('--gedi/--no-gedi', default=True)
+@click.option('--batch-size', default=8)
 @click.option('--resume/--no-resume', default=False)
+@click.option('--overwrite/--no-overwrite', default=False)
+@click.option('--gedi/--no-gedi', default=True)
 @click.option('--filter_p', default=0.8, type=float, help='1 - rho from paper, should be between 0 and 1 higher filter_p means more aggressive topic steering')
 @click.option('--target_p', default=0.8, type=float, help='tau from paper, preserves tokens that are classified as correct topic')
 @click.option('--disc_weight', default=30, type=int, help='omega from paper, higher disc_weight means more aggressive topic steering (30)')
 @click.option('--top_p', default=1.0, type=float, help='Hyperparameter for nucleus sampling')
-def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str, gedi: bool,
-         target_p: float, disc_weight: int, n: int, max_tokens: int, batch_size: int, resume: bool, filter_p: float, top_p: float):
-    # Load prompts
-    if dataset_file:
-        assert not use_eos
-        # Load prompts from dataset file
-        assert dataset_file.endswith('.jsonl')
-        dataset = pd.read_json(dataset_file, lines=True)
-        prompts = pd.json_normalize(dataset['prompt'])['text']
-    elif use_eos:
-        assert not dataset_file
-        dataset = None
-        # Create EOS prompts
-        if model_type in ['gpt2', 'gpt2-affect', 'gpt2-ensemble', 'gpt2-naughty-list', 'pplm']:
-            prompts = pd.Series('<|endoftext|>')
-        elif model_type == 'ctrl':
-            # HACK: update gen_samples since we use it as our batch size for pipelines
-            prompts = pd.Series('').repeat(n // batch_size + 1)
-            n = batch_size
-        elif model_type == 'gpt3':
-            prompts = pd.Series('').repeat(n // batch_size + 1)
-        else:
-            raise RuntimeError('Model not implemented with EOS prompts')
-    else:
-        raise click.exceptions.MissingParameter('Missing --dataset-file or --use-eos option.')
-    print('Prompts:', '\n', prompts)
+@click.option('--top_k', default=50, type=int, help='Hyperparameter for top-k sampling')
+@click.option('--logits_scale', default=10.0, type=float, help='GeDi logits scale')
+def main(output_file: str, prompt: str, use_eos: bool, model: str, 
+         n: int, max_tokens: int, batch_size: int, 
+         resume: bool, overwrite: bool, gedi: bool,
+         disc_weight: float, logits_scale: float,
+         classifier_model: str, filter_p: float, target_p: float, 
+         top_p: float, top_k: int):
+    
+    assert resume or overwrite or not os.path.exists(output_file)
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-    # Create output files
-    output_dir = Path(output_dir)
-    generations_file = output_dir / 'generations.jsonl'
-    assert resume or not os.path.exists(generations_file)   # don't overwrite generations!
-    ensure_dir(output_dir)
-
-    mode = "detoxifier"
-    code_desired = "dirty"
-    code_undesired = "clean"
-    model_type = 'gpt2'
-    gen_type = "gedi"
-    # gen_model_name_or_path = "gpt2" # "gpt2-medium"
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -137,22 +120,21 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
     # filter_p = 0.8 #1 - rho from paper, should be between 0 and 1 higher filter_p means more aggressive topic steering
     # target_p = 0.8 #tau from paper, preserves tokens that are classified as correct topic
     class_bias = 0 #hyperparameter that determines class prior, set to uniform by default
+    code_desired = "dirty"
+    code_undesired = "clean"
 
     def generate_text(prompt):
         text_ids = tokenizer.encode(prompt)
         encoded_prompts=torch.LongTensor(text_ids).unsqueeze(0).to(device)
-        # if encoded_prompts.shape[1] > 512:
-        #     encoded_prompts = encoded_prompts[:, -512:]
-
-        # multi_code = tokenizer.encode(secondary_code)
+        
         attr_class = 1
-        # print(encoded_prompts.shape[1] + max_tokens)
+
         generated_sequence = model.generate(
             input_ids=encoded_prompts,
             pad_lens=None,
             max_length=min(1024, encoded_prompts.shape[1] + max_tokens),
-            min_length=min(1024, encoded_prompts.shape[1] + max_tokens),
-            top_k=None,
+            # min_length=min(1024, encoded_prompts.shape[1] + max_tokens),
+            top_k=top_k,
             top_p=top_p,
             # repetition_penalty= 1.2,
             # rep_penalty_scale= 10,
@@ -170,39 +152,31 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
             code_0 = code_desired,
             code_1 = code_undesired,
             multi_code=None,
-            num_return_sequences=n
+            num_return_sequences=batch_size
             )
 
-        # texts = [tokenizer.decode(output, skip_special_tokens=False)[len(prompt):] for output in generated_sequence.tolist()]
-        texts = [tokenizer.decode(output, skip_special_tokens=True) for output in generated_sequence.tolist()]
+        texts = [tokenizer.decode(output, skip_special_tokens=True)[len(prompt):] for output in generated_sequence.tolist()[0]]
+        # print(generated_sequence.tolist())
+        # texts = [tokenizer.decode(output, skip_special_tokens=True) for output in generated_sequence.tolist()[0]]
         return texts
 
-    # prompt = "It is really "
-    # print(generate_text(prompt))
+    prompts = PROMPT[prompt]
+    fout = jsonlines.open(output_file, "a" if resume else "w")
 
-    with jsonlines.open(generations_file, "w") as f:
-        for p in tqdm(prompts):
-            generations = generate_text(p)
-            for g in generations:
-                f.write({
-                    "prompt": p,
+    progress = tqdm(total=len(prompts) * n, desc=output_file)
+
+    for prompt in prompts:
+        for _ in range(n):
+            gens = generate_text(prompt)
+            for g in gens:
+                fout.write({
+                    "prompt": prompt,
                     "generation": g
                 })
 
-    # Generate and collate perspective scores
-    # generations = []
-    # for i, gen in enumerate(generations_iter):
-    #     generations.append(gen)
-        # perspective(f'generation-{i}', gen)
+            progress.update(1)
+    
+    fout.close()
 
-    torch.cuda.empty_cache()
-    # perspective.stop()
-    print('Finished generation and perspective scoring!')
-
-    # if os.path.exists(perspective_file):
-    #     print('Collating output files')
-    #     collate(dataset, generations, load_jsonl(perspective_file), output_file)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

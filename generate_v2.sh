@@ -57,8 +57,8 @@ dexpert() {
 # dexpert "heegyu/gpt2-emotion" "emotion" 10 64
 # dexpert "heegyu/gpt2-bbc-news" "bbc-news" 10 400
 
-OMEGA=60
-LOGITS_SCALE=20
+OMEGA=30
+LOGITS_SCALE=10
 gedi() {
     # dexpert $model $prompt $count $tokens
     MODEL=$1
@@ -74,25 +74,26 @@ gedi() {
         GATE_MODEL="no"
         GATED=""
     fi
-    python run_generation.py \
-        --model-type gedi \
+    cd GeDi 
+
+    python run_gedi.py \
         --model $MODEL \
         --prompt $PROMPT \
         --max-tokens $TOKENS \
-        --nontoxic-model heegyu/gpt2-non-toxic \
-        --toxic-model heegyu/gpt2-toxic \
         --classifier-model $GATE_MODEL \
         --batch-size 2 \
         --n $COUNT \
         --disc_weight $OMEGA \
         --logits_scale $LOGITS_SCALE \
         --overwrite \
-        --p 0.9 \
-        "data-v2/$VERSION/gedi$GATED/$PROMPT-$COUNT($TOKENS,o$OMEGA,ls$LOGITS_SCALE).jsonl"
+        --top_p 0.9 \
+        "../data-v2/$VERSION/gedi$GATED/$PROMPT-$COUNT($TOKENS,o$OMEGA,ls$LOGITS_SCALE).jsonl"
+
+    cd ..
 }
 
-# gedi "heegyu/gpt2-emotion" "emotion" 10 64
-# gedi "heegyu/gpt2-bbc-news" "bbc-news" 10 400
+# gedi "heegyu/gpt2-emotion" "emotion" 1 64
+gedi "heegyu/gpt2-bbc-news" "bbc-news" 1 128
 
 series() {
     MODEL=$1
@@ -127,5 +128,5 @@ series() {
 }
 
 # series "heegyu/gpt2-yelp-polarity" "sentiment" 1000 128
-series "heegyu/gpt2-bbc-news" "bbc-news" 500 128
-series "heegyu/gpt2-emotion" "emotion" 500 64
+# series "heegyu/gpt2-bbc-news" "bbc-news" 500 128
+# series "heegyu/gpt2-emotion" "emotion" 500 64

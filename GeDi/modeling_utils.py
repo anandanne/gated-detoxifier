@@ -3690,7 +3690,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 if temperature != 1.0:
                     next_token_logits = next_token_logits / temperature
                 # Top-p/top-k filtering
-                next_token_logits = top_k_top_p_filtering(next_token_logits, top_k=0, top_p=top_p)
+                next_token_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
                 # Sample
                 next_token = torch.multinomial(F.softmax(next_token_logits, dim=-1), num_samples=1).squeeze(1)
             else:
@@ -3721,7 +3721,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
             # stop when there is a </s> in each sentence, or if we exceed the maximul length
             if unfinished_sents.max() == 0:
-                print("unfinished_sents.max() == 0", unfinished_sents)
+                # print("unfinished_sents.max() == 0", unfinished_sents)
                 break
 
         # if not(gedi_model is None):
