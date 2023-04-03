@@ -21,14 +21,15 @@ from torchtext import datasets
 from tqdm import tqdm, trange
 from transformers import BertTokenizer, BertModel
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
-
+from datasets import load_dataset
+import pandas as pd
 from pplm_classification_head import ClassificationHead
 
 torch.manual_seed(0)
 np.random.seed(0)
 EPSILON = 1e-10
 example_sentence = "This is incredible! I love it, this is the best chicken I have ever had."
-max_length_seq = 100
+max_length_seq = 256
 
 
 class Discriminator(torch.nn.Module):
@@ -52,9 +53,10 @@ class Discriminator(torch.nn.Module):
             self.encoder = BertModel.from_pretrained(pretrained_model)
             self.embed_size = self.encoder.config.hidden_size
         else:
-            raise ValueError(
-                "{} model not yet supported".format(pretrained_model)
-            )
+            self.tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model)
+            self.encoder = GPT2LMHeadModel.from_pretrained(pretrained_model)
+            self.embed_size = self.encoder.transformer.config.hidden_size
+
         if classifier_head:
             self.classifier_head = classifier_head
         else:
@@ -81,7 +83,8 @@ class Discriminator(torch.nn.Module):
         ).float().to(self.device).detach()
         if hasattr(self.encoder, 'transformer'):
             # for gpt2
-            hidden, _ = self.encoder.transformer(x)
+            out = self.encoder.transformer(x)
+            hidden = out.last_hidden_state
         else:
             # for bert
             hidden, _ = self.encoder(x)
@@ -474,29 +477,29 @@ def train_discriminator(
 
         x = []
         y = []
-        with open("datasets/toxic/toxic_train.txt") as f:
-            for i, line in enumerate(tqdm(f, ascii=True)):
-                try:
-                    d = eval(line)
-                    seq = discriminator.tokenizer.encode(d["text"])
+        dataset = load_dataset("heegyu/toxic_conversations_balanced", split="train").shuffle(42).select(range(50000))
 
-                    if len(seq) < max_length_seq:
-                        if add_eos_token:
-                            seq = [50256] + seq
-                        seq = torch.tensor(
-                            seq, device=device, dtype=torch.long
-                        )
-                    else:
-                        print("Line {} is longer than maximum length {}".format(
-                            i, max_length_seq
-                        ))
-                        continue
-                    x.append(seq)
-                    y.append(int(np.sum(d["label"]) > 0))
-                except:
-                    print("Error evaluating / tokenizing"
-                          " line {}, skipping it".format(i))
-                    pass
+        for i, line in enumerate(tqdm(dataset)):
+            # d = eval(line)
+            seq = discriminator.tokenizer.encode(line["text"])
+
+            if len(seq) < max_length_seq:
+                if add_eos_token:
+                    seq = [50256] + seq
+                seq = torch.tensor(
+                    seq, device=device, dtype=torch.long
+                )
+            else:
+                print("Line {} is longer than maximum length {}".format(
+                    i, max_length_seq
+                ))
+                continue
+            x.append(seq)
+            y.append(int(np.sum(line["label"]) > 0))
+            # except:
+            #     print("Error evaluating / tokenizing"
+            #             " line {}, skipping it".format(i))
+            #     pass
 
         full_dataset = Dataset(x, y)
         train_size = int(0.9 * len(full_dataset))

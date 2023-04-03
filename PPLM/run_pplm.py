@@ -84,6 +84,22 @@ DISCRIMINATOR_MODELS_PARAMS = {
         "default_class": 3,
         "pretrained_model": "gpt2-medium",
     },
+    "gpt2-emotion-toxicity": {
+        "class_size": 2, 
+        "embed_size": 768, 
+        "pretrained_model": "heegyu/gpt2-emotion",
+        "path": "../PPLM/model/emotion/toxic_classifier_head_epoch_10.pt", 
+        "class_vocab": {"non_toxic": 0, "toxic": 1}, 
+        "default_class": 0
+    },
+    "gpt2-bbc-news-toxicity": {
+        "class_size": 2, 
+        "embed_size": 768, 
+        "pretrained_model": "heegyu/gpt2-bbc-news",
+        "path": "../PPLM/model/bbc-news/toxic_classifier_head_epoch_10.pt", 
+        "class_vocab": {"non_toxic": 0, "toxic": 1}, 
+        "default_class": 0
+        }
 }
 
 
@@ -882,7 +898,6 @@ if __name__ == '__main__':
         "-D",
         type=str,
         default=None,
-        choices=("clickbait", "sentiment", "toxicity", "generic"),
         help="Discriminator to use",
     )
     parser.add_argument('--discrim_weights', type=str, default=None,
