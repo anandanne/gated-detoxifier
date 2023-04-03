@@ -27,5 +27,5 @@ jsonl line
 
 ### \r 때문에 화가 나요(Windows)
 ```
-sed -i 's/\r$//' ./generate_v1.sh
+sed -i 's/\r$//' ./generate_v2.sh
 ```

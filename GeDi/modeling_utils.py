@@ -3201,7 +3201,9 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         code_0="negative",
         code_1="positive",
         multi_code=None,
-        get_ll=False
+        get_ll=False,
+        classifier_model=None,
+        classifier_tokenizer=None
     ):
         r""" Generates sequences for models with a LM head. The method currently supports greedy or penalized greedy decoding, sampling with top-k or nucleus sampling
         and beam-search.
@@ -3376,7 +3378,9 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             code_0,
             code_1,
             multi_code,
-            get_ll
+            get_ll,
+            classifier_model,
+            classifier_tokenizer
         )
 
         if num_return_sequences != 1:
@@ -3419,6 +3423,12 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
         return full_vocab_p
     
+    def _classify_text(self, tokenizer, classifier, texts):
+        inputs = tokenizer(texts, return_tensors="pt", padding=True, truncation=True).to(classifier.device)
+        outputs = classifier(**inputs).logits.softmax(-1)[:, 1]
+        outputs = (outputs > 0.5).float()
+        return outputs
+    
     def _generate_no_beam_search(
         self,
         input_ids,
@@ -3448,7 +3458,9 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         code_0,
         code_1,
         multi_code,
-        get_ll
+        get_ll,
+        classifier_model,
+        classifier_tokenizer
     ):
         """ Generate sequences for each example without beam search (num_beams == 1).
             All returned sequence are generated independantly.
@@ -3462,7 +3474,6 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             cond_len = input_ids.shape[1]
 
         if not(gedi_model is None):
-
 
             if attr_class == 0:
                 pt_id = tokenizer.encode(code_0)[0]
@@ -3518,6 +3529,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 next_token_logits = outputs[0][:, -1, :]
             if get_ll:
                 next_token_logp = torch.log_softmax(next_token_logits,-1)
+            original_next_token_logits = next_token_logits
+
             if not(gedi_model is None):
                 #want to compute LM loss here so feeding inputs as labels
                 if not gedi_past is None:
@@ -3622,48 +3635,48 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             if gpt3_api_key is None:
                 past = outputs[1]
 
-            max = torch.max(next_token_logits,-1,keepdim=True)
-            max=max[0]
-            next_token_logits= next_token_logits - max + rep_penalty_scale
+            # max = torch.max(next_token_logits,-1,keepdim=True)
+            # max=max[0]
+            # next_token_logits= next_token_logits - max + rep_penalty_scale
 
-            # repetition penalty from CTRL paper (https://arxiv.org/abs/1909.05858)
-            if repetition_penalty != 1.0:
-                for i in range(batch_size):
+            # # repetition penalty from CTRL paper (https://arxiv.org/abs/1909.05858)
+            # if repetition_penalty != 1.0:
+            #     for i in range(batch_size):
 
-                    prevs = input_ids[i][cond_len:].tolist()
+            #         prevs = input_ids[i][cond_len:].tolist()
 
-                    for j in range(0,len(prevs)):
-                        previous_token = prevs[j]
+            #         for j in range(0,len(prevs)):
+            #             previous_token = prevs[j]
 
-                        if rep_penalty_scale>0:
-
-
-                            if  next_token_logits[i, previous_token] == rep_penalty_scale:
-                                rescale=True
-                            else:
-                                rescale=False
+            #             if rep_penalty_scale>0:
 
 
-
-
-                            next_token_logits[i, previous_token] /= repetition_penalty
-                            #original version accidentally put rescaling inside forloop over prevs, this is slow and only changes things is max logit is penalized
-                            #conditonal replicates paper results but is faster
-                            #can comment out to remove, makes very small difference, generation sometimes the same
-                            if rescale:
-
-                                max = torch.max(next_token_logits[i,:])
-                                next_token_logits[i,:]= next_token_logits[i,:]- max + rep_penalty_scale
+            #                 if  next_token_logits[i, previous_token] == rep_penalty_scale:
+            #                     rescale=True
+            #                 else:
+            #                     rescale=False
 
 
 
-                        else:
+
+            #                 next_token_logits[i, previous_token] /= repetition_penalty
+            #                 #original version accidentally put rescaling inside forloop over prevs, this is slow and only changes things is max logit is penalized
+            #                 #conditonal replicates paper results but is faster
+            #                 #can comment out to remove, makes very small difference, generation sometimes the same
+            #                 if rescale:
+
+            #                     max = torch.max(next_token_logits[i,:])
+            #                     next_token_logits[i,:]= next_token_logits[i,:]- max + rep_penalty_scale
 
 
-                            if next_token_logits[i, previous_token] < 0:
-                                next_token_logits[i, previous_token] *= repetition_penalty
-                            else:
-                                next_token_logits[i, previous_token] /= repetition_penalty
+
+            #             else:
+
+
+            #                 if next_token_logits[i, previous_token] < 0:
+            #                     next_token_logits[i, previous_token] *= repetition_penalty
+            #                 else:
+            #                     next_token_logits[i, previous_token] /= repetition_penalty
 
 
 
@@ -3684,18 +3697,50 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                     for eos_token_id in eos_token_ids:
                         if (cur_len < min_length):
                             next_token_logits[i, eos_token_id] -=10000
+            
+            use_gedi = True
+            if classifier_model is not None and gedi_model is not None:
+                if do_sample:
+                    # Temperature (higher temperature => more likely to sample low probability tokens)
+                    if temperature != 1.0:
+                        original_next_token_logits = original_next_token_logits / temperature
+                    # Top-p/top-k filtering
+                    original_next_token_logits = top_k_top_p_filtering(original_next_token_logits, top_k=top_k, top_p=top_p)
+                    # Sample
+                    next_token = torch.multinomial(F.softmax(original_next_token_logits, dim=-1), num_samples=1).squeeze(1)
+                else:
+                    # Greedy decoding
+                    next_token = torch.argmax(original_next_token_logits, dim=-1)
 
-            if do_sample:
-                # Temperature (higher temperature => more likely to sample low probability tokens)
-                if temperature != 1.0:
-                    next_token_logits = next_token_logits / temperature
-                # Top-p/top-k filtering
-                next_token_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
-                # Sample
-                next_token = torch.multinomial(F.softmax(next_token_logits, dim=-1), num_samples=1).squeeze(1)
-            else:
-                # Greedy decoding
-                next_token = torch.argmax(next_token_logits, dim=-1)
+                test_tokens_to_add = next_token * unfinished_sents + pad_token_id * (1 - unfinished_sents)
+                test_input_ids = torch.cat([input_ids, test_tokens_to_add.unsqueeze(-1)], dim=-1)
+                generated_text = tokenizer.batch_decode(test_input_ids, skip_special_tokens=True)
+                toxicity = self._classify_text(classifier_tokenizer, classifier_model, generated_text)
+                
+                use_gedi = toxicity.sum().cpu().item() > 0
+
+                # print(toxicity.cpu().tolist(), generated_text)
+                if use_gedi:
+                    print("toxic!", toxicity.cpu().tolist(), generated_text)
+
+            if use_gedi:
+                if do_sample:
+                    # Temperature (higher temperature => more likely to sample low probability tokens)
+                    if temperature != 1.0:
+                        next_token_logits = next_token_logits / temperature
+                    # Top-p/top-k filtering
+                    next_token_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
+                    # Sample
+                    next_token = torch.multinomial(F.softmax(next_token_logits, dim=-1), num_samples=1).squeeze(1)
+                else:
+                    # Greedy decoding
+                    next_token = torch.argmax(next_token_logits, dim=-1)
+                
+                
+                if classifier_model is not None and gedi_model is not None:
+                    next_token = test_tokens_to_add * (1 - toxicity) + next_token * toxicity
+                    next_token = next_token.long()
+                    print("filter token!")
 
 
             if not (gedi_model is None):
@@ -3712,6 +3757,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             # update generations and finished sentences
             # print("before", unfinished_sents, next_token)
             tokens_to_add = next_token * unfinished_sents + pad_token_id * (1 - unfinished_sents)
+
             if get_ll:
                 sequence_ll += next_token_logp[0,next_token]
             input_ids = torch.cat([input_ids, tokens_to_add.unsqueeze(-1)], dim=-1)

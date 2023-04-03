@@ -1,6 +1,8 @@
 *.jsonl
 data/
+data-v2/
 *.csv
+models/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

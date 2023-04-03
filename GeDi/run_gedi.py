@@ -12,6 +12,7 @@ import jsonlines
 import pandas as pd
 
 from modeling_gpt2 import GPT2LMHeadModel
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from transformers import (
     GPT2Config,
@@ -110,12 +111,21 @@ def main(output_file: str, prompt: str, use_eos: bool, model: str,
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    tokenizer = GPT2Tokenizer.from_pretrained("gpt2", do_lower_case=False)
+    tokenizer = GPT2Tokenizer.from_pretrained(model)
     model = GPT2LMHeadModel.from_pretrained(model)#, load_in_half_prec=True)
     model = model.to(device).eval()
 
-    gedi_model_name_or_path = 'pretrained_models/gedi_detoxifier'
-    gedi_model = GPT2LMHeadModel.from_pretrained(gedi_model_name_or_path).eval().to(device)
+    if gedi:
+        gedi_model_name_or_path = 'pretrained_models/gedi_detoxifier'
+        gedi_model = GPT2LMHeadModel.from_pretrained(gedi_model_name_or_path).eval().to(device)
+
+    if classifier_model is not None and classifier_model != "no":
+        classifier_tokenizer = AutoTokenizer.from_pretrained(classifier_model)
+        classifier_model = AutoModelForSequenceClassification.from_pretrained(classifier_model).eval().to(device)
+    else:
+        classifier_model, classifier_tokenizer = None, None
+
+
     # disc_weight = 30 # #omega from paper, higher disc_weight means more aggressive topic steering (30)
     # filter_p = 0.8 #1 - rho from paper, should be between 0 and 1 higher filter_p means more aggressive topic steering
     # target_p = 0.8 #tau from paper, preserves tokens that are classified as correct topic
@@ -152,7 +162,9 @@ def main(output_file: str, prompt: str, use_eos: bool, model: str,
             code_0 = code_desired,
             code_1 = code_undesired,
             multi_code=None,
-            num_return_sequences=batch_size
+            num_return_sequences=batch_size,
+            classifier_model=classifier_model, 
+            classifier_tokenizer=classifier_tokenizer
             )
 
         texts = [tokenizer.decode(output, skip_special_tokens=True)[len(prompt):] for output in generated_sequence.tolist()[0]]
