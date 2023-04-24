@@ -36,6 +36,7 @@ class PTuneForLAMA(torch.nn.Module):
         for param in self.model.parameters():
             param.requires_grad = self.args.use_lm_finetune
         
+        self.template = template
         # get model's embeddings
         self.embeddings = self.model.get_input_embeddings()
         
@@ -51,6 +52,7 @@ class PTuneForLAMA(torch.nn.Module):
             
             self.label_token_ids[k] = self.tokenizer.convert_tokens_to_ids(v)
             
+            
         # load prompt encoder
         self.hidden_size = self.embeddings.embedding_dim
         self.pseudo_token_id = self.tokenizer.convert_tokens_to_ids(self.args.pseudo_token)
@@ -59,7 +61,8 @@ class PTuneForLAMA(torch.nn.Module):
             self.spell_length_disc = sum(self.template)
             self.prompt_encoder_disc = PromptEncoder(self.template, self.hidden_size, self.tokenizer, args)
             self.prompt_encoder_disc = self.prompt_encoder_disc.cuda()
-            self.prompt_encoder = self.prompt_encoder_disc
+            self.prompt_encoder = self.prompt_encoder_disc            
+            self.disc_embedding = self.embeddings
         else:
             self.disc_model = _create_model(self.args.disc_embedding_checkpoint[:-5]).to(self.args.device)
             self.spell_length_disc = sum(self.args.template_disc)

@@ -29,3 +29,6 @@ jsonl line
 ```
 sed -i 's/\r$//' ./generate_v2.sh
 ```
+
+### conda env
+conda create -n name python=3.8

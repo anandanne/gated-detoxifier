@@ -1,6 +1,6 @@
 gpu=0
 temperature=1.0
-batch_size=500
+batch_size=32
 file_name='eval'
 # out_dir='../detoxic_model/small'
 # model_name_or_path="/home/zhanghanqing/pretrained_model/gpt2/small"

@@ -28,11 +28,21 @@ from gpt2tunediscrim import ClassificationHead
 #sys.path.insert(1, lab_root)
 
 from modeling_gpt2 import GPT2LMHeadModel
-from transformers import AutoTokenizer, AutoModelWithLMHead, GPT2Tokenizer
+from transformers import AutoTokenizer, AutoModelWithLMHead, GPT2Tokenizer, AutoModelForSequenceClassification
 
 SmallConst = 1e-15
 enc = GPT2Tokenizer.from_pretrained('gpt2-medium')
 
+gate_model_name = "./roberta_toxicity_classifier" # gate_model_name = "s-nlp/roberta_toxicity_classifier"
+gate_tokenizer = AutoTokenizer.from_pretrained(gate_model_name)
+gate_classifier = AutoModelForSequenceClassification.from_pretrained(gate_model_name).eval().to("cuda:0")
+
+@torch.no_grad()
+def classify_gpt2_tokens_toxic(tokens):
+    text = enc.decode(tokens.tolist())
+    ids = gate_tokenizer(text, return_tensors="pt").to("cuda:0")
+    prob = gate_classifier(**ids)[0]
+    return prob.argmax(-1).tolist()[0]
 
 tot_tendency = []
 
@@ -289,6 +299,8 @@ def sample_from_hidden(model, args, classifier, context=None, past=None, device=
 
     grad_norms = None
     loss_in_time = []
+    true_discrim_loss = torch.tensor([0], dtype=torch.long)
+
     for i in trange(args.length, ascii=True, disable=True):
 
         # Get past/probs for current output, except for last word
@@ -304,6 +316,29 @@ def sample_from_hidden(model, args, classifier, context=None, past=None, device=
         else:
             original_probs, true_past = model(output)
             true_hidden = model.hidden_states
+
+        # check toxic
+        # 일단 샘플링 시도
+        logits = top_k_top_p_filtering(original_probs[:, -1, :], top_k=args.top_k, top_p=args.top_p)  # + SmallConst
+        log_probs = F.softmax(logits, dim=-1) / args.temperature
+
+        if sample:
+            prev = torch.multinomial(log_probs, num_samples=1)
+        else:
+            _, prev = torch.topk(log_probs, k=1, dim=-1)
+
+        next_output = prev if output is None else torch.cat((output, prev), dim=1)  # update output
+        
+        # not toxic
+        if classify_gpt2_tokens_toxic(next_output[0]) != 1:
+            if args.print_intermediate_result:
+                print(enc.decode(next_output.tolist()[0]))
+            output = next_output
+            past = None
+            continue
+        # toxic then work PPLM!
+            
+
 
         # Modify the past if necessary
 
@@ -492,6 +527,7 @@ def run_model():
     
     model.to(device)
     model.eval()
+
 
 
     PROMPT = {

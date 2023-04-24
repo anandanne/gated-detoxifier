@@ -4,7 +4,7 @@ run() {
     length=$2
     count=$3
 
-    python3 pplm.py \
+    python3 pplm_gated.py \
         --prompt $task \
         --model $task \
         --top_k 50 \
@@ -12,8 +12,9 @@ run() {
         --print-result \
         --length $length \
         --n $count \
+        --label-class 1 \
         --sample \
-        --output-file "$task-$count.jsonl"
+        --output-file "gated_$task-$count.jsonl"
 }
 
 

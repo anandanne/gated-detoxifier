@@ -1,4 +1,4 @@
-VERSION="v1"
+VERSION="v3-speed"
 
 
 gpt2() {
@@ -15,13 +15,14 @@ gpt2() {
         --max-tokens $TOKENS \
         --batch-size 2 \
         --n $COUNT \
-        --p 0.9 \
-        "data-v2/$VERSION/gpt2/$PROMPT-$COUNT($TOKENS,p0.9).jsonl"
+        --p 1.0 \
+        "data-v2/$VERSION/gpt2/$PROMPT-$COUNT($TOKENS,p1.0).jsonl"
 }
 
-
+# gpt2 "heegyu/gpt2-yelp-polarity" "sentiment" 50 100
 # gpt2 "heegyu/gpt2-emotion" "emotion" 10 64
 # gpt2 "heegyu/gpt2-bbc-news" "bbc-news" 10 400
+
 USE_GATE=false
 ALPHA=1.0
 dexpert() {
@@ -50,10 +51,10 @@ dexpert() {
         --batch-size 2 \
         --n $COUNT \
         --alpha $ALPHA \
-        --overwrite \
         --p 0.9 \
         "data-v2/$VERSION/dexpert$GATED/$PROMPT-$COUNT($TOKENS,A$ALPHA).jsonl"
 }
+# dexpert "heegyu/gpt2-yelp-polarity" "sentiment" 100 64
 # dexpert "heegyu/gpt2-emotion" "emotion" 10 64
 # dexpert "heegyu/gpt2-bbc-news" "bbc-news" 10 400
 
@@ -118,6 +119,12 @@ series() {
 
     
     LOGITS_SCALE=10
+    USE_GATE=false
+    OMEGA=15
+    gedi $MODEL $PROMPT $COUNT $TOKENS
+    OMEGA=30
+    gedi $MODEL $PROMPT $COUNT $TOKENS
+
     USE_GATE=true
     OMEGA=15
     gedi $MODEL $PROMPT $COUNT $TOKENS
@@ -128,3 +135,15 @@ series() {
 # series "heegyu/gpt2-yelp-polarity" "yelp" 500 32
 # series "heegyu/gpt2-bbc-news" "bbc-news" 500 128
 # series "heegyu/gpt2-emotion" "emotion" 500 64
+
+gpt2 "heegyu/gpt2-yelp-polarity" "yelp" 50 100
+    
+LOGITS_SCALE=10
+USE_GATE=false
+OMEGA=15
+gedi "heegyu/gpt2-yelp-polarity" "yelp" 50 100
+dexpert "heegyu/gpt2-yelp-polarity" "yelp" 50 100
+
+USE_GATE=true
+gedi "heegyu/gpt2-yelp-polarity" "yelp" 50 100
+dexpert "heegyu/gpt2-yelp-polarity" "yelp" 50 100

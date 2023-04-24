@@ -25,7 +25,7 @@ T = TypeVar('T')
 ALLOWED_MODELS = ['gpt3', 'gpt2', 'dexperts', 'dexperts-gpt3', 'pplm']
 ALLOWED_PROMPT = ["yelp", "emotion", "bbc-news"]
 PROMPT = {
-    "yelp": ["positive ", "negative "],
+    "yelp": ["topic: positive\n", "topic: negative\n"],
     "emotion": [f"topic: {k}\n" for k in ["sadness", "joy", "love", "anger", "fear", "surprise"]],
     "bbc-news": [f"topic: {k}\n" for k in ["tech", "business", "sport", "entertainment", "politics"]],
 }

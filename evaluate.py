@@ -113,8 +113,11 @@ def eval_sentiment(filename, items):
     # yelp: VictorSanh/roberta-base-finetuned-yelp-polarity
     # textattack/bert-base-uncased-yelp-polarity
     # imdb: wrmurray/roberta-base-finetuned-imdb
-    classifier = Classifier("textattack/bert-base-uncased-yelp-polarity")
+    classifier = Classifier("VictorSanh/roberta-base-finetuned-yelp-polarity")
     id2label = ["negative", "positive"]
+    for item in items:
+        item["prompt"] = item["prompt"].replace("topic:", "").strip()
+        # item["generation"] = item["generation"].lower()
     # classifier = Classifier("cardiffnlp/twitter-xlm-roberta-base-sentiment")
     # id2label = ["negative", "neutral", "positive"]
     predictions = classifier.classify_items(items, 8, id2label, True)

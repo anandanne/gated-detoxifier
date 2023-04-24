@@ -3,6 +3,7 @@ data/
 data-v2/
 *.csv
 models/
+DisCup/detoxic_model/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
